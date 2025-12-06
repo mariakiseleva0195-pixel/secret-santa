@@ -547,7 +547,7 @@
             <div class="tagline">Корпоратив · Тайный Санта</div>
             <h1>Анкета пожеланий</h1>
             <p class="subheader">
-              Заполни форму, чтобы получатель получил подарок, который его точно порадует 🎁
+              Заполни форму, чтобы ты получил подарок, который тебя точно порадует 🎁
             </p>
           </div>
         </div>
@@ -560,22 +560,25 @@
             <div class="field">
               <label for="name">
                 Имя Фамилия
-                <span class="hint">так тебя увидит организатор</span>
+                <span class="hint">так тебя увидят все участники</span>
               </label>
-              <input id="name" name="name" type="text" required placeholder="Например: Мария Киселёва" />
+              <input id="name" name="name" type="text" required placeholder="Например: Иванов Иван" />
             </div>
 
-            
-              <div class="field">
+            <div class="field">
               <label>Бюджет подарка фиксированный — 3500 ₽</label>
             </div>
 
             <div class="field">
               <label for="wishlist">
                 Что тебя порадует?
-                <span class="hint">идеально — несколько идей</span>
+                <span class="hint">идеально — несколько идей, можно добавить артикул с маркетплейса</span>
               </label>
-              <textarea id="wishlist" name="wishlist" placeholder="Например: свечи с пряным ароматом, вкусный кофе, книга по саморазвитию, уютные носки 38–39 размера…"></textarea>
+              <textarea
+                id="wishlist"
+                name="wishlist"
+                placeholder="Например: свечи с пряным ароматом, вкусный кофе, книга по саморазвитию, уютные носки 38–39 размера, органайзер на стол, милые декор-вещи. Если хочешь что-то с маркетплейса — можно добавить артикул товара."
+              ></textarea>
               <div class="chips" aria-hidden="true">
                 <div class="chip">☕ кофе / чай</div>
                 <div class="chip">📚 книги</div>
@@ -614,8 +617,7 @@
                 Отправить пожелания
               </button>
               <p class="hint-soft">
-                Можно вернуться и заполнить форму ещё раз,
-                <br />если захочешь обновить свои пожелания.
+                Анкету можно заполнить один раз с одного Telegram-аккаунта.
               </p>
             </div>
 
@@ -668,128 +670,203 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <!-- Firebase SDK v12 (модульный) -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
+  <script type="module">
+    import {
+      initializeApp
+    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      serverTimestamp,
+      query,
+      orderBy,
+      onSnapshot,
+      where,
+      getDocs,
+      limit
+    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+    import {
+      getAnalytics
+    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyD_EEes15Jz5q5t4Wyi2R1V2u-1274Xh4w",
-    authDomain: "secret-santa-d5cdd.firebaseapp.com",
-    projectId: "secret-santa-d5cdd",
-    storageBucket: "secret-santa-d5cdd.firebasestorage.app",
-    messagingSenderId: "902557716524",
-    appId: "1:902557716524:web:b125e1a1e959d89ad10189",
-    measurementId: "G-6497542QZ1"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-  const db = getFirestore(app);
-
-  const form = document.getElementById("santa-form");
-  const statusEl = document.getElementById("status");
-  const submitBtn = document.getElementById("submit-btn");
-  const responsesEl = document.getElementById("responses");
-  const emptyStateEl = document.getElementById("empty-state");
-  const counterBadge = document.getElementById("counter-badge");
-
-  let tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-  if (tg) {
-    tg.expand();
-    tg.setBackgroundColor("#050816");
-    tg.setHeaderColor("secondary_bg_color");
-  }
-
-  function setStatus(message, type) {
-    statusEl.textContent = message || "";
-    statusEl.className = "status-line";
-    if (type === "ok") statusEl.classList.add("ok");
-    if (type === "err") statusEl.classList.add("err");
-  }
-
-  async function submitForm(e) {
-    e.preventDefault();
-    if (!form.reportValidity()) return;
-
-    const payload = {
-      name: form.name.value.trim(),
-      wishlist: form.wishlist.value.trim(),
-      noGifts: form["noGifts"].value.trim(),
-      extra: form.extra.value.trim(),
-      tgUser: tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user : null,
-      createdAt: serverTimestamp(),
+    const firebaseConfig = {
+      apiKey: "AIzaSyD_EEes15Jz5q5t4Wyi2R1V2u-1274Xh4w",
+      authDomain: "secret-santa-d5cdd.firebaseapp.com",
+      projectId: "secret-santa-d5cdd",
+      storageBucket: "secret-santa-d5cdd.firebasestorage.app",
+      messagingSenderId: "902557716524",
+      appId: "1:902557716524:web:b125e1a1e959d89ad10189",
+      measurementId: "G-6497542QZ1"
     };
 
-    if (!payload.name) {
-      setStatus("Пожалуйста, укажи Имя и Фамилию.", "err");
-      return;
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const db = getFirestore(app);
+
+    const form = document.getElementById("santa-form");
+    const statusEl = document.getElementById("status");
+    const submitBtn = document.getElementById("submit-btn");
+    const responsesEl = document.getElementById("responses");
+    const emptyStateEl = document.getElementById("empty-state");
+    const counterBadge = document.getElementById("counter-badge");
+
+    let tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+    let userId = null;
+    let hasSubmitted = false;
+
+    if (tg) {
+      tg.expand();
+      tg.setBackgroundColor("#050816");
+      tg.setHeaderColor("secondary_bg_color");
+      if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+        userId = String(tg.initDataUnsafe.user.id);
+      }
     }
 
-    submitBtn.disabled = true;
-    setStatus("Отправляем пожелания…", "");
-
-    try {
-      await addDoc(collection(db, "secret-santa-wishes"), payload);
-      setStatus("Готово! Пожелания сохранены в Firebase.", "ok");
-    } catch (err) {
-      console.error(err);
-      setStatus("Не получилось сохранить. Попробуй ещё раз.", "err");
-    } finally {
-      submitBtn.disabled = false;
+    function setStatus(message, type) {
+      statusEl.textContent = message || "";
+      statusEl.className = "status-line";
+      if (type === "ok") statusEl.classList.add("ok");
+      if (type === "err") statusEl.classList.add("err");
     }
-  }
 
-  function normalizeRow(row) {
-    return {
-      name: row.name || "—",
-      wishlist: row.wishlist || "—",
-      noGifts: row.noGifts || row.no_gifts || "—",
-    };
-  }
+    async function submitForm(e) {
+      e.preventDefault();
+      if (!form.reportValidity()) return;
 
-  function renderRows(rows) {
-    responsesEl.innerHTML = "";
-    if (!rows || !rows.length) {
-      responsesEl.appendChild(emptyStateEl);
-      emptyStateEl.style.display = "flex";
-      counterBadge.textContent = "0 участников";
-      return;
+      if (hasSubmitted) {
+        setStatus("Анкета уже отправлена с этого аккаунта. Если нужно что-то изменить — напиши организатору.", "err");
+        return;
+      }
+
+      const payload = {
+        name: form.name.value.trim(),
+        wishlist: form.wishlist.value.trim(),
+        noGifts: form["noGifts"].value.trim(),
+        extra: form.extra.value.trim(),
+        tgUser: tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user : null,
+        tgId: userId || null,
+        createdAt: serverTimestamp(),
+      };
+
+      if (!payload.name) {
+        setStatus("Пожалуйста, укажи Имя и Фамилию.", "err");
+        return;
+      }
+
+      submitBtn.disabled = true;
+      setStatus("Отправляем пожелания…", "");
+
+      try {
+        await addDoc(collection(db, "secret-santa-wishes"), payload);
+        hasSubmitted = true;
+        setStatus("Готово! Пожелания сохранены в Firebase. Анкету с этого аккаунта больше отправить нельзя.", "ok");
+      } catch (err) {
+        console.error(err);
+        setStatus("Не получилось сохранить. Попробуй ещё раз.", "err");
+        submitBtn.disabled = false;
+      }
     }
-    emptyStateEl.style.display = "none";
 
-    rows.forEach((r) => {
-      const row = normalizeRow(r);
-      const div = document.createElement("div");
-      div.className = "response-row";
-      div.innerHTML = `
-        <div class="response-name">${escapeHtml(row.name)}</div>
-        <div class="response-text">${escapeHtml(row.wishlist)}</div>
-        <div class="response-text">${escapeHtml(row.noGifts)}</div>
-      `;
-      responsesEl.appendChild(div);
+    function normalizeRow(row) {
+      return {
+        name: row.name || "—",
+        wishlist: row.wishlist || "—",
+        noGifts: row.noGifts || row.no_gifts || "—",
+      };
+    }
+
+    function renderRows(rows) {
+      responsesEl.innerHTML = "";
+      if (!rows || !rows.length) {
+        responsesEl.appendChild(emptyStateEl);
+        emptyStateEl.style.display = "flex";
+        counterBadge.textContent = "0 участников";
+        return;
+      }
+      emptyStateEl.style.display = "none";
+
+      rows.forEach((r) => {
+        const row = normalizeRow(r);
+        const div = document.createElement("div");
+        div.className = "response-row";
+        div.innerHTML = `
+          <div class="response-name">${escapeHtml(row.name)}</div>
+          <div class="response-text">${escapeHtml(row.wishlist)}</div>
+          <div class="response-text">${escapeHtml(row.noGifts)}</div>
+        `;
+        responsesEl.appendChild(div);
+      });
+
+      const count = rows.length;
+      counterBadge.textContent = count === 1 ? "1 участник" : `${count} участников`;
+    }
+
+    function escapeHtml(str) {
+      return String(str || "").replace(/[&<>"']/g, c => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#039;"
+      }[c]));
+    }
+
+    function subscribeToResponses() {
+      counterBadge.textContent = "обновляется…";
+      const q = query(collection(db, "secret-santa-wishes"), orderBy("createdAt", "desc"));
+      onSnapshot(q, snapshot => {
+        const rows = snapshot.docs.map(doc => doc.data());
+        renderRows(rows);
+      });
+    }
+
+    async function checkExistingSubmission() {
+      if (!userId) return;
+      try {
+        const q = query(
+          collection(db, "secret-santa-wishes"),
+          where("tgId", "==", userId),
+          limit(1)
+        );
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          hasSubmitted = true;
+          const data = snapshot.docs[0].data();
+
+          // Заполняем форму тем, что уже есть (опционально)
+          if (data.name) form.name.value = data.name;
+          if (data.wishlist) form.wishlist.value = data.wishlist;
+          if (data.noGifts) form.noGifts.value = data.noGifts;
+          if (data.extra) form.extra.value = data.extra;
+
+          // Блокируем поля и кнопку
+          Array.from(form.elements).forEach(el => {
+            if (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "BUTTON") {
+              el.disabled = true;
+            }
+          });
+
+          setStatus("Ты уже заполнил(а) анкету с этого аккаунта. Если нужно что-то изменить — напиши организатору.", "ok");
+        }
+      } catch (err) {
+        console.error("Ошибка проверки существующей анкеты", err);
+      }
+    }
+
+    form.addEventListener("submit", submitForm);
+    document.addEventListener("DOMContentLoaded", () => {
+      subscribeToResponses();
+      checkExistingSubmission();
+      if (!userId) {
+        // скрываем левый блок полностью
+        document.querySelector("section.layout section").style.display = "none";
+        // делаем список пожеланий на всю ширину
+        document.querySelector("aside").style.gridColumn = "1 / -1";
+        document.querySelector(".layout").style.gridTemplateColumns = "1fr";
+      }
     });
-
-    const count = rows.length;
-    counterBadge.textContent = count === 1 ? "1 участник" : `${count} участников`;
-  }
-
-  function escapeHtml(str) {
-    return String(str || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));
-  }
-
-  function subscribeToResponses() {
-    counterBadge.textContent = "обновляется…";
-    const q = query(collection(db, "secret-santa-wishes"), orderBy("createdAt", "desc"));
-    onSnapshot(q, snapshot => {
-      const rows = snapshot.docs.map(doc => doc.data());
-      renderRows(rows);
-    });
-  }
-
-  form.addEventListener("submit", submitForm);
-  document.addEventListener("DOMContentLoaded", () => subscribeToResponses());
-</script>
+  </script>
 </body>
 </html>
-  
