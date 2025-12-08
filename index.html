@@ -411,7 +411,7 @@
 
     .responses-header {
       display: grid;
-      grid-template-columns: 1fr 3fr 3fr;
+      grid-template-columns: 1.4fr 1.5fr 1.5fr;
       gap: 6px;
       padding: 7px 10px;
       font-size: 11px;
@@ -444,7 +444,7 @@
 
     .response-row {
       display: grid;
-      grid-template-columns: 1fr 3fr 3fr;
+      grid-template-columns: 1.4fr 1.5fr 1.5fr;
       gap: 6px;
       padding: 7px 10px 7px;
       font-size: 11.5px;
@@ -464,19 +464,20 @@
     }
 
     .response-name {
-  font-weight: 600;
-  white-space: normal;
-  text-overflow: unset;
-  overflow: visible;
-}
+      font-weight: 600;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
 
     .response-text {
-  color: #d1d5db;
-  overflow: visible;
-  text-overflow: unset;
-  display: block;
-  white-space: normal;
-}
+      color: #d1d5db;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
 
     .empty-state {
       padding: 14px 10px 16px;
@@ -532,7 +533,53 @@
       border-bottom: 1px dashed rgba(196, 181, 253, 0.6);
     }
     .footer a:hover { border-bottom-style: solid; }
-  </style>
+  
+      50% { filter: brightness(1.25); }
+    }
+
+ {
+      0%, 100% { filter: brightness(0.8); }
+      50% { filter: brightness(1.3); }
+    }
+
+.snowflakes {
+      pointer-events: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      z-index: 5;
+    }
+
+    .snowflake {
+      position: absolute;
+      top: -10px;
+      color: #ffffffcc;
+      font-size: 14px;
+      animation: fall linear infinite;
+    }
+
+    @keyframes fall {
+      0% { transform: translateY(-10px) rotate(0deg); }
+      100% { transform: translateY(110vh) rotate(360deg); }
+    }
+
+.santa-glow {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      animation: glow-santa 2.4s ease-in-out infinite;
+      text-shadow: 0 0 6px rgba(255, 255, 255, 0.6), 0 0 12px rgba(255, 0, 0, 0.35);
+    }
+
+    @keyframes glow-santa {
+      0%, 100% { filter: brightness(1) drop-shadow(0 0 3px rgba(255, 255, 255, 0.6)); }
+      50% { filter: brightness(1.25) drop-shadow(0 0 8px rgba(255, 0, 0, 0.45)); }
+    }
+
+</style>
 </head>
 <body>
   <div class="app-shell">
@@ -633,7 +680,7 @@
               </div>
             </div>
             <p class="side-description">
-              Здесь собираются ответы всех участников.
+              Здесь собираются ответы всех участников. Даритель не увидит эту страницу — только организатор.
             </p>
 
             <div class="responses-list">
@@ -659,7 +706,7 @@
       </section>
 
       <footer class="footer">
-        <span>26.12.2025 · 18:00 · SINOBY loft 🎅</span>
+        <span><span class="santa-glow">26.12.2025 · 18:00 · SINOBY loft 🎅🏿</span></span>
       </footer>
     </main>
   </div>
@@ -759,7 +806,7 @@
       try {
         await addDoc(collection(db, "secret-santa-wishes"), payload);
         hasSubmitted = true;
-        setStatus("Готово! Пожелания сохранены. Анкету с этого аккаунта больше отправить нельзя.", "ok");
+        setStatus("Готово! Пожелания сохранены в Firebase. Анкету с этого аккаунта больше отправить нельзя.", "ok");
       } catch (err) {
         console.error(err);
         setStatus("Не получилось сохранить. Попробуй ещё раз.", "err");
@@ -833,11 +880,13 @@
           hasSubmitted = true;
           const data = snapshot.docs[0].data();
 
+          // Заполняем форму тем, что уже есть (опционально)
           if (data.name) form.name.value = data.name;
           if (data.wishlist) form.wishlist.value = data.wishlist;
           if (data.noGifts) form.noGifts.value = data.noGifts;
           if (data.extra) form.extra.value = data.extra;
 
+          // Блокируем поля и кнопку
           Array.from(form.elements).forEach(el => {
             if (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "BUTTON") {
               el.disabled = true;
@@ -856,7 +905,9 @@
       subscribeToResponses();
       checkExistingSubmission();
       if (!userId) {
+        // скрываем левый блок полностью
         document.querySelector("section.layout section").style.display = "none";
+        // делаем список пожеланий на всю ширину
         document.querySelector("aside").style.gridColumn = "1 / -1";
         document.querySelector(".layout").style.gridTemplateColumns = "1fr";
       }
